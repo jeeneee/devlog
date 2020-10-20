@@ -2,8 +2,8 @@ module.exports = {
   title: `jeeneee's devlog`,
   description: `Blog posted about ...`,
   author: `WOOJIN`,
-  introduction: `열심히 배우겠습니다.`,
-  siteUrl: `https://jeeneee.netlify.app`, // Your blog site url
+  introduction: `自强不息,厚德载物`,
+  siteUrl: `https://jeeneee.dev`, // Your blog site url
   social: {
     twitter: ``, // Your Twitter account
     github: `jeeneee`, // Your GitHub account
