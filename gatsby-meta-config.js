@@ -1,6 +1,6 @@
 module.exports = {
   title: `jeeneee's devlog`,
-  description: `Blog posted about ...`,
+  description: `Blog posted about IT`,
   author: `WOOJIN`,
   introduction: `自强不息,厚德载物`,
   siteUrl: `https://jeeneee.dev`, // Your blog site url
