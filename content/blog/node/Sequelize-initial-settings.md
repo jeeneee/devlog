@@ -156,7 +156,7 @@ module.exports = {
 
 보통 `sequelize.define(modelName, {...})`을 이용해 테이블을 정의하지만 추후에 추가될지도 모르는 associate에 능동적으로 대응하기 위해 class로 정의되었음을 볼 수 있다. 유저와 게시물 간의 ERD는 아래와 같다.
 
-![images/diagram.png](images/diagram.png)
+![diagram](images/diagram.png)
 
 유저-유저: _N:M(Follow)_
 
