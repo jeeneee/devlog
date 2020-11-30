@@ -73,27 +73,27 @@ public class Main {
     public static void main(String[] args) {
         int a = 29;
         int b = 22;
-        System.out.println("     a = " + Integer.toBinaryString(a));
-        System.out.println("     b = " + Integer.toBinaryString(b));
-        System.out.println("    ~a = " + Integer.toBinaryString(~a) + '(' + ~a + ')');
-        System.out.println(" a & b = " + Integer.toBinaryString(a & b));
-        System.out.println(" a | b = " + Integer.toBinaryString(a | b));
-        System.out.println(" a ^ b = " + Integer.toBinaryString(a ^ b));
-        System.out.println("a << 2 = " + Integer.toBinaryString(a << 2));
-        System.out.println("a >> 3 = " + Integer.toBinaryString(a >> 3));
+        System.out.printf("     a = %32s %n", Integer.toBinaryString(a));
+        System.out.printf("     b = %32s %n", Integer.toBinaryString(b));
+        System.out.printf("    ~a = %32s %n", Integer.toBinaryString(~a) + '(' + ~a + ')');
+        System.out.printf(" a & b = %32s %n", Integer.toBinaryString(a & b));
+        System.out.printf(" a | b = %32s %n", Integer.toBinaryString(a | b));
+        System.out.printf(" a ^ b = %32s %n", Integer.toBinaryString(a ^ b));
+        System.out.printf("a << 2 = %32s %n", Integer.toBinaryString(a << 2));
+        System.out.printf("a >> 3 = %32s %n", Integer.toBinaryString(a >> 3));
     }
 }
 ```
 
 ```bash
-     a = 11101
-     b = 10110
+     a =                            11101
+     b =                            10110
     ~a = 11111111111111111111111111100010(-30)
- a & b = 10100
- a | b = 11111
- a ^ b = 1011
-a << 2 = 1110100
-a >> 3 = 11
+ a & b =                            10100
+ a | b =                            11111
+ a ^ b =                             1011
+a << 2 =                          1110100
+a >> 3 =                               11
 ```
 
 위 코드의 출력 결과는 모두 이진수이다. int형이기 때문에 32자리지만 앞의 0은 생략되었음에 유의한다. 참고로 `~a`에 2의 보수를 취하면 -30이란 값이 나온다.
