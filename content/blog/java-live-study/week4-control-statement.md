@@ -215,7 +215,7 @@ public class Application {
             for (GHIssueComment comment: comments) {
                 String nickname = comment.getUser().getLogin();
                 String body = comment.getBody();
-                if (body.contains("http://") || body.contains("https://")) {
+                if (body.contains("https://") || body.contains("http://")) {
                     nicknames.add(nickname);
                 }
             }
