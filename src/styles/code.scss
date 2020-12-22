@@ -22,6 +22,10 @@ blockquote {
   color: $blockquote-text-color;
 }
 
+code {
+  font-weight: 500 !important;
+}
+
 code[class*='language-'],
 pre[class*='language-'] {
   color: #e0e0e0;
@@ -68,9 +72,11 @@ pre[class*='language-'] {
 
 /* Inline code */
 :not(pre) > code[class*='language-'] {
-  padding: 0.1em 0.6em;
-  border-radius: 0.2em;
+  padding: 0.11em 0.3em;
+  margin: 0 0.1em;
+  border-radius: 0.3em;
   white-space: normal;
+  border: 1.2px solid $inline-text-color;
   background: $inline-dimmed-color;
   color: $inline-text-color;
 }
@@ -137,6 +143,7 @@ pre[class*='language-'] {
 .token.bold {
   font-weight: bold;
 }
+
 .token.italic {
   font-style: italic;
 }
