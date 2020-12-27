@@ -5,7 +5,7 @@ category: 'java-live-study'
 draft: false
 ---
 
-![whiteship](images/whiteship-logo.jpg)
+![click to enlarge](images/whiteship-logo.jpg)
 
 ## 조건문(if else)
 
@@ -300,7 +300,7 @@ public class Application {
 }
 ```
 
-![assignment1](images/week4/assignment1.png)
+![click to enlarge](images/week4/assignment1.png)
 
 실행 후 출력 결과를 마크다운 파일에 복붙하면 위와 같은 표가 생긴다. 2020-12-08 기준으로 3주차 이슈까지 닫혔기 때문에 아직 모두에게 티셔츠를 얻을 기회가 있다는 것을 알 수 있다.(커트라인 80% 가정)
 

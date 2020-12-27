@@ -5,7 +5,7 @@ category: 'java-live-study'
 draft: false
 ---
 
-![whiteship](images/whiteship-logo.jpg)
+![click to enlarge](images/whiteship-logo.jpg)
 
 ## 산술 연산자
 
@@ -68,7 +68,7 @@ public class Main {
 
 `>>` - 지정된 수만큼 비트를 오른쪽으로 이동(right shift 연산)
 
-![bit-operator](images/week3/bit-operator.png)
+![click to enlarge](images/week3/bit-operator.png)
 
 ```java
 public class Main {
@@ -104,7 +104,7 @@ a >> 3 =                               11
 
 관계 연산자는 두 피연산자를 비교하는 데 사용되는 연산자이며, 다음과 같은 6개의 연산자가 존재한다.
 
-![relational-operator](images/week3/relational-operator.png)
+![click to enlarge](images/week3/relational-operator.png)
 
 ```java
 public class Main {
@@ -142,7 +142,7 @@ public class Main {
 
 논리 연산자는 둘 이상의 조건을 AND(`&&`), OR(`||`), NOT(`!`)으로 연결하여 공식으로 구성할 수 있게 해준다.
 
-![logical-operator](images/week3/logical-operator.png)
+![click to enlarge](images/week3/logical-operator.png)
 
 논리 연산자는 비트 연산자와 달리 피연산자가 boolean형이다. 또한 논리 연산자는 논리 연산자로 이루어진 식 앞에서 이미 조건을 충족하면 뒤의 연산은 무시하고 결과를 출력한다.
 
@@ -213,4 +213,4 @@ public class Main {
 
 컴퓨터 세계에서도 연산자에 따른 우선 순위가 존재한다. 여러 연산자들의 우선 순위는 아래와 같으며 굳이 외울 필요는 없다. 자연스레 외워지기도 하고, 헷갈린다면 우선 순위가 가장 높은 괄호를 사용하면 된다.
 
-![operator-precedence](images/week3/operator-precedence.png)
+![click to enlarge](images/week3/operator-precedence.png)

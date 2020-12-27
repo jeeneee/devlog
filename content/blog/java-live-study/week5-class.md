@@ -5,7 +5,7 @@ category: 'java-live-study'
 draft: false
 ---
 
-![whiteship](images/whiteship-logo.jpg)
+![click to enlarge](images/whiteship-logo.jpg)
 
 ## 클래스와 객체
 
@@ -65,7 +65,7 @@ class Class {               // 클래스
 
 - 접근 제어자 - 접근 제어자는 해당 클래스 또는 멤버를 정해진 범위에서만 접근할 수 있도록 통제하는 역할을 한다. 클래스는 `public`과 `default`밖에 쓸 수 없다. 범위는 다음과 같다. 참고로 `default`는 아무것도 덧붙이지 않았을 때를 의미한다.
 
-  ![](images/week5/access-modifier.png)
+  ![click to enlarge](images/week5/access-modifier.png)
 
 - `static` - 변수, 메서드는 객체가 아닌 클래스에 속한다.
 - `final`
@@ -149,7 +149,7 @@ public void setY(int y) {
 }
 ```
 
-![](images/week5/method-declaration.png)
+![click to enlarge](images/week5/method-declaration.png)
 
 - **접근 제어자 및 기타 제어자** - 해당 메서드에 접근할 수 있는 범위를 명시하거나 위에서 언급했듯이 부가적인 의미를 부여한다.
 - **반환 타입** - 메서드가 모든 작업을 수행한 뒤에 반환할 타입을 명시한다.
@@ -297,7 +297,7 @@ public class BinaryTree {
 }
 ```
 
-![](images/week5/graph.png)
+![click to enlarge](images/week5/graph.png)
 
 ```java
 package week5.binarytree;

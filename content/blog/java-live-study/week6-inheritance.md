@@ -5,7 +5,7 @@ category: 'java-live-study'
 draft: false
 ---
 
-![whiteship](images/whiteship-logo.jpg)
+![click to enlarge](images/whiteship-logo.jpg)
 
 ## 자바 상속의 특징
 
@@ -397,4 +397,4 @@ class Rectangle extends GraphicObject {
 ## Object 클래스
 
 `java.lang` 패키지에 포함된 `Object` 클래스는 클래스 계층 구조 맨 위에 위치한 최상위 클래스이다. 모든 클래스는 직ㆍ간접적으로 `Object` 클래스의 자손 클래스이므로 아래 11개의 메서드들을 상속받아 쓸 수 있다.  
-![](images/week6/object-methods.png)
+![click to enlarge](images/week6/object-methods.png)
