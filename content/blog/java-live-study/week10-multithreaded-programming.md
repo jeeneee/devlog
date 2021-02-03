@@ -455,6 +455,131 @@ private void addThreadName(int i, String name) {
 [1:t1:t2:t3, 2:t1:t2:t3, 3:t2:t1:t3, 4:t2:t1:t3, 5:t1:t2:t3, 6:t2:t1:t3]
 ```
 
+## 데드락
+
+**데드락(Deadlock)**은 교착 상태라고도 불리며, 두 개 이상의 작업이 서로 상대방의 작업이 끝나기만을 기다리고 있기 때문에 결과적으로 아무것도 완료되지 못하는 상태를 가르킨다.
+
+쓰레드 레벨에서 보자면 둘 이상의 쓰레드가 락을 획득하기 위해 대기하는 동시에 해당 락을 잡고 있는 쓰레드도 마찬가지로 다른 락을 획득하기 위해 대기하면서 서로 blocked 상태에 놓이는 것을 말한다. 즉, 데드락은 다수의 쓰레드가 서로 다른 명령에 의해 동일한 락을 동시에 획득하려 할 때 발생할 수 있다.
+
+```java
+public class Deadlock {
+
+    public static void main(String[] args) throws InterruptedException {
+        Object obj1 = new Object();
+        Object obj2 = new Object();
+        Object obj3 = new Object();
+
+        Thread t1 = new Thread(new SyncThread(obj1, obj2), "t1");
+        Thread t2 = new Thread(new SyncThread(obj2, obj3), "t2");
+        Thread t3 = new Thread(new SyncThread(obj3, obj1), "t3");
+
+        t1.start();
+        Thread.sleep(5_000L);
+        t2.start();
+        Thread.sleep(5_000L);
+        t3.start();
+
+    }
+
+}
+
+class SyncThread implements Runnable {
+
+    private final Object obj1;
+    private final Object obj2;
+
+    public SyncThread(Object o1, Object o2) {
+        this.obj1 = o1;
+        this.obj2 = o2;
+    }
+
+    @Override
+    public void run() {
+        String name = Thread.currentThread().getName();
+        System.out.println(name + " acquiring lock on " + obj1);
+        synchronized (obj1) {
+            System.out.println(name + " acquired lock on " + obj1);
+            work();
+            System.out.println(name + " acquiring lock on " + obj2);
+            synchronized (obj2) {
+                System.out.println(name + " acquired lock on " + obj2);
+                work();
+            }
+            System.out.println(name + " released lock on " + obj2);
+        }
+        System.out.println(name + " released lock on " + obj1);
+        System.out.println(name + " finished execution.");
+    }
+
+    @SneakyThrows
+    private void work() {
+        Thread.sleep(30_000L);
+    }
+}
+```
+
+```
+t1 acquiring lock on java.lang.Object@6a497371
+t1 acquired lock on java.lang.Object@6a497371
+t2 acquiring lock on java.lang.Object@224c5b19
+t2 acquired lock on java.lang.Object@224c5b19
+t3 acquiring lock on java.lang.Object@3f0bacd1
+t3 acquired lock on java.lang.Object@3f0bacd1
+t1 acquiring lock on java.lang.Object@224c5b19
+t2 acquiring lock on java.lang.Object@3f0bacd1
+t3 acquiring lock on java.lang.Object@6a497371
+```
+
+동기화 블록을 사용하여 한 객체의 락을 잡은 상태에서 또 다른 객체의 락을 획득하려 한다.
+
+실행 결과를 보면 쓰레드 t1이 또 다른 객체(224c5b19)에 대한 락을 획득하려 하지만 이미 쓰레드 t2에 의해 잠긴 상태이므로 무한정 대기 상태에 빠지게 된다. 다른 쓰레드도 마찬가지이다.
+
+### VisualVM
+
+VisualVM이란 3rd party 툴로 데드락이 발생했는지 알아볼 수 있다. 게다가 IntelliJ에서 플러그인으로 설치 가능하다.
+
+![click to enlarge](images/week10/visualvm.png)
+
+```
+Thread Dump
+... 생략
+Found one Java-level deadlock:
+=============================
+"t1":
+  waiting to lock monitor 0x000002bd3f327e80, which is held by "t2"
+
+"t2":
+  waiting to lock monitor 0x000002bd47dc92c0, which is held by "t3"
+
+"t3":
+  waiting to lock monitor 0x000002bd47dcb2c0, which is held by "t1"
+... 생략
+```
+
+위의 코드를 VisualVM으로 실행시켜 보았다. 30 + 5 + 5 = 40초에 쓰레드들이 교착 상태에 빠지는 것을 확인할 수 있다.
+
+중첩적인 락은 데드락이 발생하는 가장 흔한 이유이다. 이미 공유 객체의 락을 잡은 상태에서 또 다른 자원에 대한 락을 획득하려 해선 안된다. 예를 들어 위의 코드에서 중첩적인 락을 아래와 같이 풀어서 작성한다면 데드락이 발생하지 않고 성공적으로 실행할 수 있다.
+
+```java
+public void run() {
+    String name = Thread.currentThread().getName();
+    System.out.println(name + " acquiring lock on " + obj1);
+    synchronized (obj1) {
+        System.out.println(name + " acquired lock on " + obj1);
+        work();
+    }
+    System.out.println(name + " released lock on " + obj1);
+    System.out.println(name + " acquiring lock on " + obj2);
+    synchronized (obj2) {
+        System.out.println(name + " acquired lock on " + obj2);
+        work();
+    }
+    System.out.println(name + " released lock on " + obj2);
+
+    System.out.println(name + " finished execution.");
+}
+```
+
 ### Reference
 
 - 자바의 정석 3/E
