@@ -5,8 +5,6 @@ category: 'spring'
 draft: false
 ---
 
-# 스프링 프로젝트 생성(IntelliJ)
-
 인텔리제이(IntelliJ)에서 스프링 MVC 프로젝트를 생성해본다.
 
 프로젝트를 구성하는 방법은 여러 가지가 있겠지만, 여기선 우선 Maven으로 프로젝트를 생성하고 Spring MVC 프레임워크를 추가하여 기본 틀을 만든 뒤에 라이브러리를 Maven으로 관리할 수 있도록 설정할 것이다.
@@ -158,7 +156,7 @@ public class HomeController {
 
 마지막으로 톰캣을 실행한다.
 
-⚠️ 만일 404 에러가 발생하고 **{project_name}.iml** 파일에 아래와 같은 코드가 있다면 지운 후에 정상적으로 실행될 것이다. (또는 **target** 폴더가 제대로 생성되는지 확인한다.)
+⚠️ 만일 404 에러가 발생하고 **{project_name}.iml** 파일에 아래와 같은 코드가 있는 경우, 이 부분을 지우면 정상적으로 실행될 것이다. (또는 **target** 폴더가 제대로 생성되는지 확인한다.)
 
 ```xml
 <component name="NewModuleRootManager" inherit-compiler-output="true">
