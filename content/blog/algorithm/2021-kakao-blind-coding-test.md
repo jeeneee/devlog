@@ -138,8 +138,8 @@ void insert(string* key, int mask, int point) {
     string s = "";
     for (int i = 0; i < 4; i++) {
         s += (mask & (1 << i)) ? ALL : key[i];
-        map[s].push_back(point);
     }
+    map[s].push_back(point);
 }
 
 vector<int> solution(vector<string> info, vector<string> query) {
