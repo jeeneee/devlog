@@ -49,20 +49,25 @@ include 'realworld-core'
 먼저 루트 프로젝트의 build.gradle은 다음과 같다.
 
 ```groovy
-plugins {
-    id 'java'
-    id 'org.springframework.boot' version '2.5.2'
-    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:2.5.2"
+        classpath "io.spring.gradle:dependency-management-plugin:1.0.11.RELEASE"
+    }
 }
 
-group = 'com.jeeneee'
-version = '0.0.1'
-sourceCompatibility = '11'
-
 subprojects {
+    group = 'com.jeeneee'
+    version = '0.0.1'
+
     apply plugin: 'java'
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
+
+    sourceCompatibility = '11'
 
     repositories {
         mavenCentral()
