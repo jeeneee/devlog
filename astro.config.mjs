@@ -5,11 +5,12 @@ import tailwind from "@astrojs/tailwind";
 import { autoNewTabExternalLinks } from './src/autoNewTabExternalLinks';
 
 import partytown from "@astrojs/partytown";
+import robotsTxt from 'astro-robots-txt';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://jeeneee.dev',
-  integrations: [mdx(), sitemap(), tailwind(), partytown()],
+  integrations: [mdx(), sitemap(), robotsTxt(), tailwind(), partytown()],
   markdown: {
     extendDefaultPlugins: true,
     rehypePlugins: [[autoNewTabExternalLinks, {
