@@ -1,0 +1,185 @@
+---
+title: 'Elasticsearch 튜토리얼 2'
+slug: 'elasticsearch-tutorial-2'
+description: 'spring에서 elasticsearch API를 호출해 봅시다.'
+tags: ["elasticsearch", "spring"]
+pubDate: '2025-02-26'
+---
+spring에서 elasticsearch client를 통해 API를 호출해 봅니다.
+
+## ElasticsearchClient
+[공식 문서](https://www.elastic.co/guide/en/elasticsearch/client/java-api-client/current/index.html)에 따르면, 7.15.0 버전 기점으로
+Java High Level REST Client(HLRC)는 deprecated 되었습니다. 따라서 low level client인 `co.elastic.clients:elasticsearch-java` dependency를 사용합니다.
+```kotlin
+implementation("co.elastic.clients:elasticsearch-java")
+```
+
+일부 빈만 생성해서 auto configuration(`ElasticsearchClientAutoConfiguration`)에 맡겨도 되지만, RestClient의 세부적인 옵션 추가를 대비하여 `ElasticsearchProperties`만 사용해 ElasticsearchClient를 빈으로 생성했습니다.
+```yaml
+# ElasticsearchProperties
+spring:
+  elasticsearch:
+    uris:
+      - http(s)://<url>:<port>
+```
+```kotlin
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.json.jackson.JacksonJsonpMapper
+import co.elastic.clients.transport.rest_client.RestClientTransport
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.apache.http.HttpHost
+import org.elasticsearch.client.RestClient
+import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchProperties
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+
+@Configuration
+class ElasticsearchConfig(
+    private val elasticsearchProperties: ElasticsearchProperties,
+) {
+    @Bean
+    fun esClient(): ElasticsearchClient {
+        val hosts = elasticsearchProperties.uris.map { HttpHost.create(it) }.toTypedArray()
+        val restClient = RestClient.builder(*hosts).build()
+        val transport = RestClientTransport(restClient, JacksonJsonpMapper(ObjectMapper().registerKotlinModule()))
+
+        return ElasticsearchClient(transport)
+    }
+}
+```
+이제 빈으로 등록된 해당 클라이언트를 통해 Elasticsearch API를 호출할 수 있습니다.
+
+## 인덱스 관리
+그 전에 [튜토리얼 1#alias](../elasticsearch-tutorial-1/#alias)에서 언급한 alias와 daily index를 관리하기 쉽도록 코드를 작성해 봅니다.
+```kotlin
+/**
+ * e.g.
+ * alias: message
+ * index: message_v0-20250226
+ */
+enum class ESDocumentIndexType(val alias: String, val version: String) {
+    MESSAGE(alias = "message", version = "v0"),
+    ;
+
+    fun dailyIndex(date: Instant): String {
+        val dateString = dateFormatter.format(date)
+        return "${alias}_${version}-${dateString}"
+    }
+
+    companion object {
+        private val dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC"))
+    }
+}
+```
+
+## Elasticsearch API
+다양한 API를 제공하지만 튜토리얼답게 CRUD에 해당하는 [색인, 검색, 수정, 삭제]만 다룰 것이며, 인덱스 대상은 아래와 같이 정의했습니다.
+```kotlin
+interface ESDocument {
+    @get:JsonIgnore
+    val id: String
+
+    @get:JsonIgnore
+    val index: String
+}
+
+data class MessageESDocument(
+    val messageId: Long,
+    val chatId: Long,
+    val userId: Long,
+    val content: String,
+    val createdAt: Instant,
+) : ESDocument {
+    override val id: String
+        get() = messageId.toString()
+    override val index: String
+        get() = ESDocumentIndexType.MESSAGE.dailyIndex(createdAt)
+}
+```
+
+### 색인
+```kotlin
+fun <T : ESDocument> index(document: T) {
+    esClient.index {
+        it.index(document.index)
+            .id(document.id)
+            .document(document)
+    }
+}
+```
+Function을 함수 파라미터로 받기 때문에 DSL 스타일의 람다로 표현 가능합니다. document는 위의 `JacksonJsonMapper`에 의해 json으로 직렬화됩니다.
+> index template을 정의했다면 존재하지 않는 인덱스에 대한 색인 시 해당 인덱스가 생성됩니다.
+
+### 검색
+```kotlin
+final inline fun <reified T : ESDocument> search(
+    indexType: ESDocumentIndexType,
+    size: Int = DEFAULT_QUERY_SIZE,
+    noinline query: (Query.Builder) -> ObjectBuilder<Query>,
+    noinline sort: ((SortOptions.Builder) -> ObjectBuilder<SortOptions>)? = null,
+): List<T> {
+    return esClient.search({ search ->
+        search.index(indexType.alias)
+            .size(size)
+            .query(query)
+            .apply { sort?.let { sort(it) } }
+    }, T::class.java)
+        .hits()
+        .hits()
+        .mapNotNull { it.source() }
+}
+
+val result: List<MessageESDocument> = sut.search(
+    indexType = ESDocumentIndexType.MESSAGE,
+    query = { query ->
+        query.bool { bool ->
+            bool
+                .filter { filter -> filter.term { it.field("chatId").value(100L) } }
+                .must { must -> must.match { it.field("content").query("검색 분석").operator(Operator.And) } }
+        }
+    },
+    sort = { sort ->
+        sort.field { it.field("messageId").order(SortOrder.Desc) }
+    }
+)
+```
+여러 인덱스 타입에 활용 가능하도록 추상화하였으며, 아래 코드와 같이 사용할 수 있습니다.
+
+### 수정
+```kotlin
+interface PartialESDocument
+
+data class MessageContentPartialESDocument(
+    val content: String,
+) : PartialESDocument
+
+fun update(message: Message, partialESDocument: PartialESDocument) {
+    esClient.update<ESDocument, PartialESDocument>({
+        it.index(ESDocumentIndexType.MESSAGE.dailyIndex(message.createdAt))
+            .id(message.id.toString())
+            .doc(partialESDocument)
+    }, ESDocument::class.java)
+}
+```
+[tutorial 1#문서 분석](../elasticsearch-tutorial-1/#문서-분석)에서 언급한 내용과 같이 _id 기반의 수정 및 삭제는 문서 검색 가능 여부와 관계없이 즉각
+수행됩니다. 또한, 조회 및 수정이 아닌 원하는 필드만 바로 수정이 가능하므로, `PartialESDocument`라는 인터페이스로 추상화하였습니다.
+
+### 삭제
+```kotlin
+fun delete(message: Message) {
+    esClient.delete {
+        it.index(ESDocumentIndexType.MESSAGE.dailyIndex(message.createdAt))
+            .id(message.id.toString())
+    }
+}
+```
+수정과 마찬가지로 _id 기반의 삭제입니다.
+
+> 수정 및 삭제 작업에서는 어느 인덱스에서 작업해야 하는지 알아내기 위해 `createdAt` 값이 필요합니다.
+하지만 ID가 **Snowflake처럼 날짜 정보를 포함하는 고유한 ID**라면, ID만으로도 날짜를 추출해 데일리 인덱스를 생성할 수 있기 때문에
+더 간결하고 효율적인 방식이 될 것입니다.
+
+
+이밖에도 aggregation, bulk, complex query, ES cluster와 관련된 API도 호출할 수 있습니다.
+공식 문서에 정리가 잘 되어 있으니 참고하면 좋을 것 같습니다.
