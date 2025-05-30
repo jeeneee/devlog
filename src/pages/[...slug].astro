@@ -100,6 +100,34 @@ const { Content, headings } = await post.render();
 </BaseLayout>
 
 <script async is:inline>
+	// Giscus theme handling
+	function handleGiscusTheme() {
+		const theme = localStorage.getItem('theme') || 'light';
+		const iframe = document.querySelector('iframe.giscus-frame');
+		if (!iframe) return;
+		
+		iframe.contentWindow.postMessage(
+			{ giscus: { setConfig: { theme: theme === 'dark' ? 'dark_dimmed' : 'light' } } },
+			'*'
+		);
+	}
+
+	// Listen for Giscus messages
+	window.addEventListener('message', (event) => {
+		if (event.origin !== 'https://giscus.app') return;
+		if (!(typeof event.data === 'object' && event.data.giscus)) return;
+
+		handleGiscusTheme();
+	});
+
+	// Listen for theme changes
+	window.addEventListener('storage', (event) => {
+		if (event.key === 'theme') {
+			handleGiscusTheme();
+		}
+	});
+
+	// Table of contents handling
 	const anchors = document.querySelectorAll('.prose h2[id], .prose h3[id]');
 	const links = document.querySelectorAll('nav.toc ul li a');
 
