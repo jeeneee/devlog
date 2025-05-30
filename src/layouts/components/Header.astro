@@ -1,7 +1,8 @@
 ---
 import HeaderLink from './HeaderLink.astro';
 import { Image } from 'astro:assets';
-import AvaLogo from '../../assets/img/logo.png';
+import LogoLight from '../../assets/img/logo.png';
+import LogoDark from '../../assets/img/logo-dark.png';
 import GithubWhite from '@src/assets/img/github-mark-white.svg';
 import GithubBlack from '@src/assets/img/github-mark.svg';
 
@@ -38,7 +39,8 @@ const menu = [
 			<h2 class='m-0'>
 				<a href='/' class='flex gap-4 items-center text-xl font-black uppercase'>
 					<!-- You can use your site logo, rounded ava or simply your site name here-->
-          <Image src={AvaLogo} alt='Your site name' class="rounded-full w-11 border-white border-2 shadow-lg"/> 
+          <Image src={LogoLight} alt='Your site name' class="rounded-full w-11 border-white border-2 shadow-lg dark:hidden"/> 
+          <Image src={LogoDark} alt='Your site name' class="rounded-full w-11 border-white border-2 shadow-lg hidden dark:block"/> 
 					<!-- {SITE_TITLE} -->
 				</a>
 			</h2>
