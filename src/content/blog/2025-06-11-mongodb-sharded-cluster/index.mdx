@@ -1,0 +1,339 @@
+---
+title: '[MongoDB] Sharded Cluster'
+slug: 'mongodb-sharded-cluster'
+description: 'MongoDB Sharded Cluster에 대해 알아보고 로컬에 구축해 봅니다.'
+tags: ["mongoDB", "docker", "infra"]
+pubDate: '2025-06-11'
+---
+현재 저희 팀은 MongoDB Sharded Cluster를 사용하고 있으며, 모든 팀원이 운영 환경과 유사한 로컬 개발 환경을 구성할 수 있도록
+Docker Compose를 활용해 여러 컨테이너를 실행하는 방식으로 환경을 구축하고 있습니다.
+
+딸깍 하나로 빠르게 실행되는 것이 중요하기에 1) 명령어는 스크립트화하고, 2) 아키텍처는 최대한 단순화하여 사용 중에 있습니다.
+
+MongoDB Sharded Cluster에 대해 얕게 알아보고, 적당한 사이즈로 로컬에 구축해 봅니다.
+
+> 여기서 구축할 샤드 클러스터는 운영, 로컬 모두 적합하지 않습니다. (운영은 config server replicaset 추가, 로컬은 shard 축소 필요)
+
+## 구성 요소
+MongoDB Sharded Cluster는 3개의 컴포넌트로 구성됩니다.
+1. **shard**: 데이터 저장
+    - 하나의 샤드는 primary + 하나 이상의 secondary로 구성된 replicaset
+    - 데이터를 샤딩 키를 기준으로 여러 샤드에 분산 저장
+    - 샤드 간 서로 독립적으로 데이터를 저장
+    - 데이터 양이 많아지면 샤드를 추가해 수평 확장 가능
+2. **config server**: 클러스터 메타데이터 저장
+    - 클러스터 내 shard 정보, chunk(데이터 조각) 위치, 분산 상태, 밸런싱 상태 등을 저장
+    - 운영 환경에선 최소 3개의 Replica Set 권장
+    - 장애 시 클러스터 전체 동작 불가
+3. **mongos**: 쿼리 라우터
+    - 클라이언트 요청을 적절한 샤드로 라우팅
+    - 자체 데이터 저장 x, 라우팅 집계 역할 전담
+
+추가로, Replica Set 구성에서만 사용되는 특별한 노드 유형인 Arbiter가 있습니다.
+    - 비용 등의 이유로 shard 멤버를 두 개 사용할 때 과반수 투표를 위한 투표권 행사
+    - Replica Set 구성 방법
+        - PSS: Primary, Secondary, Secondary
+        - PSA: Primary, Secondary, Arbiter
+
+## Getting Started
+이제 docker compose로 PSS 구조의 sharded cluster를 구축해 봅시다.
+
+[github code](https://github.com/jeeneee/playground/tree/main/mongo-lab/localenvs)
+
+### Hierarchy
+```
+.
+├── docker-compose.yaml
+└── mongo
+    ├── init.sh # 마지막으로 실행되는 mongos에서 실행하는 셸 스크립트
+    └── scripts
+        ├── add-shards.js   # 샤드 추가
+        ├── init-config.js  # config server 초기화
+        ├── init-db.js      # db 초기화
+        ├── init-shard1.js  # shard1 초기화
+        └── init-shard2.js  # shard2 초기화
+```
+
+### docker-compose.yaml
+```yaml
+services:
+  mongo-configsvr1:
+    image: mongo:7.0.15
+    container_name: mongo-configsvr1
+    command: --replSet configReplSet --configsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/configdb:/data/configdb
+
+  mongo-shard1-1:
+    image: mongo:7.0.15
+    container_name: mongo-shard1-1
+    command: --replSet shard1ReplSet --shardsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/shard1-1:/data/db
+
+  mongo-shard1-2:
+    image: mongo:7.0.15
+    container_name: mongo-shard1-2
+    command: --replSet shard1ReplSet --shardsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/shard1-2:/data/db
+
+  mongo-shard1-3:
+    image: mongo:7.0.15
+    container_name: mongo-shard1-3
+    command: --replSet shard1ReplSet --shardsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/shard1-3:/data/db
+
+  mongo-shard2-1:
+    image: mongo:7.0.15
+    container_name: mongo-shard2-1
+    command: --replSet shard2ReplSet --shardsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/shard2-1:/data/db
+
+  mongo-shard2-2:
+    image: mongo:7.0.15
+    container_name: mongo-shard2-2
+    command: --replSet shard2ReplSet --shardsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/shard2-2:/data/db
+
+  mongo-shard2-3:
+    image: mongo:7.0.15
+    container_name: mongo-shard2-3
+    command: --replSet shard2ReplSet --shardsvr --port 27017
+    volumes:
+      - ${HOME}/playground/mongo/data/shard2-3:/data/db
+
+  mongo-mongos:
+    image: mongo:7.0.15
+    container_name: mongo-mongos
+    entrypoint: [ "bash", "/init.sh" ]
+    volumes:
+      - ./mongo/init.sh:/init.sh
+      - ./mongo/scripts:/scripts
+    ports:
+      - "27017:27017"
+    depends_on:
+      - mongo-configsvr1
+      - mongo-shard1-1
+      - mongo-shard1-2
+      - mongo-shard1-3
+      - mongo-shard2-1
+      - mongo-shard2-2
+      - mongo-shard2-3
+```
+
+### init.sh
+config -> shard1 -> shard2 -> mongos 순으로 초기화 및 설정합니다.
+```shell
+#!/bin/bash
+set -e
+
+function wait_for_mongo() { # mongo component 기다리는 함수
+  local name=$1
+  local host=$2
+  local port=$3
+  echo "⏳ Waiting for $name ($host:$port)..."
+  until mongosh --host "$host" --port "$port" --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+    sleep 1
+  done
+  echo "✅ $name is ready!"
+}
+
+# config
+wait_for_mongo "mongo-configsvr1" mongo-configsvr1 27017
+mongosh --host mongo-configsvr1 --port 27017 /scripts/init-config.js
+
+# shard1
+wait_for_mongo "mongo-shard1-1" mongo-shard1-1 27017
+wait_for_mongo "mongo-shard1-2" mongo-shard1-2 27017
+wait_for_mongo "mongo-shard1-3" mongo-shard1-3 27017
+mongosh --host mongo-shard1-1 --port 27017 /scripts/init-shard1.js
+
+# shard2
+wait_for_mongo "mongo-shard2-1" mongo-shard2-1 27017
+wait_for_mongo "mongo-shard2-2" mongo-shard2-2 27017
+wait_for_mongo "mongo-shard2-3" mongo-shard2-3 27017
+mongosh --host mongo-shard2-1 --port 27017 /scripts/init-shard2.js
+
+# mongos
+echo "🚀 Starting mongo-mongos..."
+mongos --configdb configReplSet/mongo-configsvr1:27017 --bind_ip_all & # background 실행 후 pid 획득
+MONGOS_PID=$!
+
+wait_for_mongo "mongo-mongos" localhost 27017
+
+mongosh --host localhost --port 27017 /scripts/add-shards.js  # 샤드 추가
+
+mongosh --host localhost --port 27017 /scripts/init-db.js     # db 초기화
+
+wait $MONGOS_PID # mongos 컨테이너가 종료되지 않도록 wait
+```
+
+### init-config.js
+config server의 replica set 초기화
+```js
+try {
+    rs.initiate({
+        _id: "configReplSet",
+        configsvr: true,
+        members: [{ _id: 0, host: "mongo-configsvr1:27017" }]
+    })
+    print("✅ Config server replica set initiated.")
+} catch (e) {
+    print("⚠️ Config server already initiated or error: " + e.message)
+}
+```
+
+### init-shard1.js
+shard1의 replica set 초기화
+```js
+try {
+    rs.initiate({
+        _id: "shard1ReplSet",
+        members: [
+            { _id: 0, host: "mongo-shard1-1:27017" },
+            { _id: 1, host: "mongo-shard1-2:27017" },
+            { _id: 2, host: "mongo-shard1-3:27017" }
+        ]
+    })
+    print("✅ Shard1 replica set initiated.")
+} catch (e) {
+    print("⚠️ Shard1 already initiated or error: " + e.message)
+}
+```
+
+### init-shard2.js
+shard2의 replica set 초기화
+```js
+try {
+    rs.initiate({
+        _id: "shard2ReplSet",
+        members: [
+            { _id: 0, host: "mongo-shard2-1:27017" },
+            { _id: 1, host: "mongo-shard2-2:27017" },
+            { _id: 2, host: "mongo-shard2-3:27017" }
+        ]
+    })
+    print("✅ Shard2 replica set initiated.")
+} catch (e) {
+    print("⚠️ Shard2 already initiated or error: " + e.message)
+}
+```
+
+### add-shards.js
+위에서 초기화한 두 샤드를 추가
+```js
+try {
+    sh.addShard("shard1ReplSet/mongo-shard1-1:27017,mongo-shard1-2:27017,mongo-shard1-3:27017")
+    sh.addShard("shard2ReplSet/mongo-shard2-1:27017,mongo-shard2-2:27017,mongo-shard2-3:27017")
+    print("✅ Shards added to cluster.")
+} catch (e) {
+    print("⚠️ Error adding shards: " + e.message)
+}
+```
+
+### init-db.js
+db 초기화 예시. 대화, 메시지 컬렉션을 생성하였고, 메시지 컬렉션을 샤딩하였습니다.
+```js
+const chat = db.getSiblingDB("chat");
+
+chat.createCollection("conversations");
+chat.createCollection("messages");
+
+chat.messages.createIndex({ conversationId: "hashed", _id: 1 }, { name: "ix_shardkey" });
+
+const admin = db.getSiblingDB("admin");
+
+try {
+    admin.runCommand({ enableSharding: "chat" });
+    admin.runCommand({
+        shardCollection: "chat.messages",
+        key: { conversationId: "hashed", _id: 1 }
+    });
+    print("✅ Sharding enabled and shard key applied");
+} catch (e) {
+    print("❌ Error during sharding setup: " + e.message);
+}
+```
+
+## 실행 및 연결
+```shell
+docker compose -f docker-compose.yaml up -d # 클러스터 실행
+docker logs -f mongo-mongos # 클러스터 구성 로그 확인
+docker exec mongo-mongos mongosh --eval "sh.status()" # 샤딩 상태 확인
+```
+샤딩과 관련된 정보를 응답합니다. <mark>주석 확인</mark>
+
+```
+...
+shards
+[
+  {
+    _id: 'shard1ReplSet',
+    host: 'shard1ReplSet/mongo-shard1-1:27017,mongo-shard1-2:27017,mongo-shard1-3:27017', // 샤드 구성원
+    state: 1, // 정상
+    topologyTime: Timestamp({ t: 1749618586, i: 8 }) // 토폴로지 갱신 시각
+  },
+  {
+    _id: 'shard2ReplSet',
+    host: 'shard2ReplSet/mongo-shard2-1:27017,mongo-shard2-2:27017,mongo-shard2-3:27017',
+    state: 1,
+    topologyTime: Timestamp({ t: 1749618586, i: 12 })
+  }
+]
+---
+autosplit // 특정 chunk size가 기준 이상으로 커지면 자동 분할
+{ 'Currently enabled': 'yes' }
+---
+balancer // 샤드 간 균형 유지(chunk 재배치)
+{
+  'Currently enabled': 'yes',
+  'Currently running': 'no',
+  'Failed balancer rounds in last 5 attempts': 0,
+  'Migration Results for the last 24 hours': 'No recent migrations'
+}
+---
+databases
+[
+  {
+    database: {
+      _id: 'chat',
+      primary: 'shard1ReplSet',
+      partitioned: false, // DB 단위 샤딩 x, collection 단위 샤딩
+      version: {
+        uuid: UUID('ea08151a-206e-4b43-a135-9b9bc7f82d15'),
+        timestamp: Timestamp({ t: 1749618586, i: 24 }),
+        lastMod: 1
+      }
+    },
+    collections: {
+      'chat.messages': {
+        shardKey: { conversationId: 'hashed', _id: 1 },
+        unique: false,
+        balancing: true,
+        chunkMetadata: [
+          { shard: 'shard1ReplSet', nChunks: 2 }, // shard1에 2개의 chunk 존재
+          { shard: 'shard2ReplSet', nChunks: 2 } // shard2에 2개의 chunk 존재
+        ],
+        chunks: [ // 실제 chunk 정보, shard key 범위 기반으로 쪼개진 데이터 범위들
+          { min: { conversationId: MinKey(), _id: MinKey() }, max: { conversationId: Long('-4611686018427387902'), _id: MinKey() }, 'on shard': 'shard2ReplSet', 'last modified': Timestamp({ t: 1, i: 0 }) },
+          { min: { conversationId: Long('-4611686018427387902'), _id: MinKey() }, max: { conversationId: Long('0'), _id: MinKey() }, 'on shard': 'shard2ReplSet', 'last modified': Timestamp({ t: 1, i: 1 }) },
+          { min: { conversationId: Long('0'), _id: MinKey() }, max: { conversationId: Long('4611686018427387902'), _id: MinKey() }, 'on shard': 'shard1ReplSet', 'last modified': Timestamp({ t: 1, i: 2 }) },
+          { min: { conversationId: Long('4611686018427387902'), _id: MinKey() }, max: { conversationId: MaxKey(), _id: MaxKey() }, 'on shard': 'shard1ReplSet', 'last modified': Timestamp({ t: 1, i: 3 }) }
+        ],
+        tags: []
+      }
+    }
+  },
+  ...
+]
+```
+이제 `mongodb://localhost:27017/chat` uri로 연결 할 수 있습니다. 연결 후에 메시지 데이터 세 개를 넣고, 아래와 같이 각 샤드에서 조회를 해봤습니다.
+```shell
+docker exec mongo-shard1-1 mongosh --eval "db.getSiblingDB('chat').messages.find()" # 조회 결과 1개
+docker exec mongo-shard2-1 mongosh --eval "db.getSiblingDB('chat').messages.find()" # 조회 결과 2개
+```
+스프링으로 구현한 코드는 [mongo-lab](https://github.com/jeeneee/playground/tree/main/mongo-lab)에서 확인할 수 있습니다.
